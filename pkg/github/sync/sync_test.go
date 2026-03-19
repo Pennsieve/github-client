@@ -68,7 +68,7 @@ func TestSyncContent_Success(t *testing.T) {
 	fetcher := &mockFetcher{
 		files: map[string]string{
 			"README.md":  "# Test Repo",
-			"config.yml": "key: value",
+			"pennsieve.json": "key: value",
 		},
 	}
 
@@ -77,7 +77,7 @@ func TestSyncContent_Success(t *testing.T) {
 		RepoUrl:   "https://github.com/testorg/testrepo",
 		Tag:       "v1.0.0",
 		Namespace: "testorg/testrepo/v1.0.0",
-		Files:     []string{"README.md", "config.yml"},
+		Files:     []string{"README.md", "pennsieve.json"},
 	}
 
 	results := SyncContent(context.Background(), slog.Default(), fetcher, config, dest)
@@ -88,7 +88,7 @@ func TestSyncContent_Success(t *testing.T) {
 	}
 
 	assert.Equal(t, []byte("# Test Repo"), dest.written["testorg/testrepo/v1.0.0/README.md"])
-	assert.Equal(t, []byte("key: value"), dest.written["testorg/testrepo/v1.0.0/config.yml"])
+	assert.Equal(t, []byte("key: value"), dest.written["testorg/testrepo/v1.0.0/pennsieve.json"])
 }
 
 func TestSyncContent_FileNotFound(t *testing.T) {
@@ -223,7 +223,7 @@ func TestDetectContentType(t *testing.T) {
 		filePath string
 	}{
 		"markdown": {filePath: "README.md"},
-		"yaml":     {filePath: "config.yml"},
+		"yaml":     {filePath: "pennsieve.json"},
 		"json":     {filePath: "data.json"},
 		"unknown":  {filePath: "file.xyz"},
 	}
