@@ -35,6 +35,7 @@ type GitHubApi interface {
 	GetAvatar(url string) (*Avatar, error)
 	GetChangeLog(repoUrl string, releaseTag string) (*GitHubChangeLog, error)
 	GetContent(url string, filePath string, tag string) (*GitHubContentResponse, error)
+	GetFileContent(url string, filePath string, tag string) ([]byte, error)
 	GetContributors(url string, tag string) ([]GitHubContributor, error)
 	GetLicense(url string) (*GitHubLicenseResponse, error)
 	GetReadme(url string, tag string) (*GitHubReadme, error)
@@ -626,6 +627,21 @@ func (s *GitHubApiClient) GetContent(url string, filePath string, tag string) (*
 	}
 
 	return &content, nil
+}
+
+func (s *GitHubApiClient) GetFileContent(url string, filePath string, tag string) ([]byte, error) {
+	resp, err := s.GetContent(url, filePath, tag)
+	if err != nil {
+		return nil, err
+	}
+	if resp == nil {
+		return nil, nil
+	}
+	decoded, ok := base64Decode(resp.Content)
+	if !ok {
+		return nil, fmt.Errorf("failed to decode base64 content for %s", filePath)
+	}
+	return []byte(decoded), nil
 }
 
 func (s *GitHubApiClient) GetUser(username string) (*GitHubUser, error) {

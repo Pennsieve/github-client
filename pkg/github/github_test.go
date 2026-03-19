@@ -1,6 +1,7 @@
 package github
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -64,6 +65,61 @@ func TestGithubAPI(t *testing.T) {
 			fn(t, testClient)
 		})
 	}
+}
+
+func TestGetFileContent(t *testing.T) {
+	fileContent := "package main\n\nfunc main() {}\n"
+	encoded := base64.StdEncoding.EncodeToString([]byte(fileContent))
+
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/repos/owner/repo/contents/main.go":
+			resp := GitHubContentResponse{
+				Name:     "main.go",
+				Path:     "main.go",
+				Content:  encoded,
+				Encoding: "base64",
+			}
+			json.NewEncoder(w).Encode(resp)
+		case "/repos/owner/repo/contents/missing.go":
+			w.WriteHeader(http.StatusNotFound)
+		case "/repos/owner/repo/contents/bad-encoding.go":
+			resp := GitHubContentResponse{
+				Name:     "bad-encoding.go",
+				Content:  "not-valid-base64!!!",
+				Encoding: "base64",
+			}
+			json.NewEncoder(w).Encode(resp)
+		}
+	}))
+	defer mockServer.Close()
+
+	client := NewGitHubApiClient(
+		slog.Default(),
+		"testClientId",
+		"testClientSecret",
+		mockServer.URL,
+		TestPennsieveGitHubAppId,
+	).WithAccessToken("test-token")
+
+	t.Run("returns decoded file content", func(t *testing.T) {
+		content, err := client.GetFileContent("https://github.com/owner/repo", "main.go", "v1.0.0")
+		assert.NoError(t, err)
+		assert.Equal(t, []byte(fileContent), content)
+	})
+
+	t.Run("returns nil for not found", func(t *testing.T) {
+		content, err := client.GetFileContent("https://github.com/owner/repo", "missing.go", "v1.0.0")
+		assert.NoError(t, err)
+		assert.Nil(t, content)
+	})
+
+	t.Run("returns error for invalid base64", func(t *testing.T) {
+		content, err := client.GetFileContent("https://github.com/owner/repo", "bad-encoding.go", "v1.0.0")
+		assert.Error(t, err)
+		assert.Nil(t, content)
+		assert.Contains(t, err.Error(), "failed to decode base64 content")
+	})
 }
 
 func testGetGithubProfile(t *testing.T, c GitHubApi) {
