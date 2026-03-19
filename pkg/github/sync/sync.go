@@ -21,6 +21,7 @@ type ContentFetcher interface {
 
 type Destination interface {
 	Write(ctx context.Context, key string, data []byte, contentType string) error
+	Read(ctx context.Context, key string) ([]byte, string, error)
 }
 
 type Config struct {
