@@ -221,11 +221,12 @@ type GitHubContentResponse struct {
 }
 
 type GitHubReleaseAssetFile struct {
-	File string `json:"file"` // the full path of the file (e.g., src/pkg/file.xyz)
-	Name string `json:"name"` // the name of the file (e.g., file.xyz)
-	Type string `json:"type"` // the type of file: 'folder' or 'file'
-	Size int64  `json:"size"` // the uncompressed size of the file in bytes
+	File string `json:"file"`
+	Name string `json:"name"`
+	Type string `json:"type"`
+	Size int64  `json:"size"`
 }
+
 type GitHubReleaseAsset struct {
 	RepoUrl      string                   `json:"repo_url"`
 	ReleaseTag   string                   `json:"release_tag"`
@@ -298,4 +299,3 @@ type GitHubInstallationList struct {
 	TotalCount    int                  `json:"total_count"`
 	Installations []GitHubInstallation `json:"installations"`
 }
-
