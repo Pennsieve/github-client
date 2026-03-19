@@ -3,35 +3,10 @@ package github
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 )
 
 const GitHub = "GitHub"
-
-type AccessToken struct {
-	AccessToken string `json:"access_token"`
-}
-
-// Scan converts the data returned from the DB into the struct.
-func (u *AccessToken) Scan(v interface{}) error {
-	switch vv := v.(type) {
-	case []byte:
-		return json.Unmarshal(vv, u)
-	case string:
-		return json.Unmarshal([]byte(vv), u)
-	default:
-		return fmt.Errorf("unsupported type: %T", v)
-	}
-}
-
-type ProfileResponse struct {
-	Login          string `json:"login"`
-	Url            string `json:"url"`
-	HTMLUrl        string `json:"html_url"`
-	AvatarUrl      string `json:"avatar_url"`
-	InstallationId string `json:"installation_id"`
-}
 
 type GithubProfile struct {
 	AccessToken    string `json:"access_token"`
@@ -40,16 +15,6 @@ type GithubProfile struct {
 	Url            string `json:"url"`
 	HTMLUrl        string `json:"html_url"`
 	AvatarUrl      string `json:"avatar_url"`
-}
-
-func (u *GithubProfile) ToResponse() *ProfileResponse {
-	return &ProfileResponse{
-		Login:          u.Login,
-		Url:            u.Url,
-		HTMLUrl:        u.HTMLUrl,
-		AvatarUrl:      u.AvatarUrl,
-		InstallationId: u.InstallationId,
-	}
 }
 
 // Scan converts the data returned from the DB into the struct.
@@ -61,42 +26,6 @@ func (u *GithubProfile) Scan(v interface{}) error {
 		return json.Unmarshal([]byte(vv), u)
 	default:
 		return fmt.Errorf("unsupported type: %T", v)
-	}
-}
-
-type GitHubUserPermission int
-
-const (
-	None GitHubUserPermission = iota
-	Read
-	Write
-	Admin
-)
-
-var gitHubUserPermissionMap = map[string]GitHubUserPermission{
-	"none":  None,
-	"read":  Read,
-	"write": Write,
-	"admin": Admin,
-}
-
-func ParseGitHubUserPermission(s string) (GitHubUserPermission, bool) {
-	c, ok := gitHubUserPermissionMap[strings.ToLower(s)]
-	return c, ok
-}
-
-func (e GitHubUserPermission) String() string {
-	switch e {
-	case None:
-		return "none"
-	case Read:
-		return "read"
-	case Write:
-		return "write"
-	case Admin:
-		return "admin"
-	default:
-		return "unknown"
 	}
 }
 
@@ -370,12 +299,3 @@ type GitHubInstallationList struct {
 	Installations []GitHubInstallation `json:"installations"`
 }
 
-type GithubExternalRepositoryResponse struct {
-	ID                   int       `json:"id"`
-	RepositoryID         int       `json:"repository_id"`
-	PublishingToDiscover bool      `json:"publishing_to_discover"`
-	PublishingToAppstore bool      `json:"publishing_to_appstore"`
-	CreatedAt            time.Time `json:"created_at"`
-	UpdatedAt            time.Time `json:"updated_at"`
-	UserId               int       `json:"user_id"`
-}
