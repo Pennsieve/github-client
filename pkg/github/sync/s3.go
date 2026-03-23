@@ -15,13 +15,20 @@ type S3Client interface {
 }
 
 type S3Destination struct {
-	Client S3Client
-	Bucket string
+	client S3Client
+	bucket string
+}
+
+func NewS3Destination(client S3Client, bucket string) *S3Destination {
+	return &S3Destination{
+		client: client,
+		bucket: bucket,
+	}
 }
 
 func (d *S3Destination) Write(ctx context.Context, key string, data []byte, contentType string) error {
-	_, err := d.Client.PutObject(ctx, &s3.PutObjectInput{
-		Bucket:      aws.String(d.Bucket),
+	_, err := d.client.PutObject(ctx, &s3.PutObjectInput{
+		Bucket:      aws.String(d.bucket),
 		Key:         aws.String(key),
 		Body:        bytes.NewReader(data),
 		ContentType: aws.String(contentType),
@@ -30,8 +37,8 @@ func (d *S3Destination) Write(ctx context.Context, key string, data []byte, cont
 }
 
 func (d *S3Destination) Read(ctx context.Context, key string) ([]byte, string, error) {
-	out, err := d.Client.GetObject(ctx, &s3.GetObjectInput{
-		Bucket: aws.String(d.Bucket),
+	out, err := d.client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(d.bucket),
 		Key:    aws.String(key),
 	})
 	if err != nil {
