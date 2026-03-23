@@ -37,57 +37,76 @@ type Result struct {
 	Error error
 }
 
+const maxWorkers = 5
+
+type syncJob struct {
+	index    int
+	filePath string
+}
+
 func SyncContent(ctx context.Context, logger *slog.Logger, fetcher ContentFetcher, config Config, dest Destination) []Result {
 	results := make([]Result, len(config.Files))
-	var wg gosync.WaitGroup
 
+	jobs := make(chan syncJob, len(config.Files))
 	for i, file := range config.Files {
+		jobs <- syncJob{index: i, filePath: file}
+	}
+	close(jobs)
+
+	workerCount := maxWorkers
+	if len(config.Files) < workerCount {
+		workerCount = len(config.Files)
+	}
+
+	var wg gosync.WaitGroup
+	for w := 0; w < workerCount; w++ {
 		wg.Add(1)
-		go func(idx int, filePath string) {
+		go func() {
 			defer wg.Done()
-
-			key := fmt.Sprintf("%s/%s", config.Namespace, filePath)
-			result := Result{File: filePath, Key: key}
-
-			content, err := fetcher.GetContent(config.RepoUrl, filePath, config.Tag)
-			if err != nil {
-				result.Error = fmt.Errorf("failed to get content for %s: %w", filePath, err)
-				logger.Error(result.Error.Error())
-				results[idx] = result
-				return
+			for job := range jobs {
+				results[job.index] = syncFile(ctx, logger, fetcher, config, dest, job.filePath)
 			}
-
-			if content == nil {
-				result.Error = fmt.Errorf("file not found: %s", filePath)
-				logger.Warn(result.Error.Error())
-				results[idx] = result
-				return
-			}
-
-			decoded, err := base64.StdEncoding.DecodeString(content.Content)
-			if err != nil {
-				result.Error = fmt.Errorf("failed to decode content for %s: %w", filePath, err)
-				logger.Error(result.Error.Error())
-				results[idx] = result
-				return
-			}
-
-			contentType := detectContentType(filePath)
-
-			if err := dest.Write(ctx, key, decoded, contentType); err != nil {
-				result.Error = fmt.Errorf("failed to write %s to destination: %w", filePath, err)
-				logger.Error(result.Error.Error())
-				results[idx] = result
-				return
-			}
-
-			logger.Info(fmt.Sprintf("synced %s to %s", filePath, key))
-			results[idx] = result
-		}(i, file)
+		}()
 	}
 
 	wg.Wait()
 	return results
+}
+
+func syncFile(ctx context.Context, logger *slog.Logger, fetcher ContentFetcher, config Config, dest Destination, filePath string) Result {
+	key := fmt.Sprintf("%s/%s", config.Namespace, filePath)
+	result := Result{File: filePath, Key: key}
+
+	content, err := fetcher.GetContent(config.RepoUrl, filePath, config.Tag)
+	if err != nil {
+		result.Error = fmt.Errorf("failed to get content for %s: %w", filePath, err)
+		logger.Error(result.Error.Error())
+		return result
+	}
+
+	if content == nil {
+		result.Error = fmt.Errorf("file not found: %s", filePath)
+		logger.Warn(result.Error.Error())
+		return result
+	}
+
+	decoded, err := base64.StdEncoding.DecodeString(content.Content)
+	if err != nil {
+		result.Error = fmt.Errorf("failed to decode content for %s: %w", filePath, err)
+		logger.Error(result.Error.Error())
+		return result
+	}
+
+	contentType := detectContentType(filePath)
+
+	if err := dest.Write(ctx, key, decoded, contentType); err != nil {
+		result.Error = fmt.Errorf("failed to write %s to destination: %w", filePath, err)
+		logger.Error(result.Error.Error())
+		return result
+	}
+
+	logger.Info(fmt.Sprintf("synced %s to %s", filePath, key))
+	return result
 }
 
 func detectContentType(filePath string) string {
