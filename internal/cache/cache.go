@@ -1,38 +1,38 @@
-package github
+package cache
 
 import "time"
 
-const defaultTTL = 5 * time.Minute
+const DefaultTTL = 5 * time.Minute
 
-type cacheItem struct {
+type item struct {
 	value     interface{}
 	expiresAt time.Time
 }
 
-func (i cacheItem) isExpired() bool {
+func (i item) isExpired() bool {
 	return time.Now().After(i.expiresAt)
 }
 
-type cache interface {
+type Cache interface {
 	Add(key string, value interface{})
 	Get(key string) (interface{}, bool)
 	Remove(key string)
 }
 
-func newBasicCache(ttl time.Duration) *basicCache {
+func New(ttl time.Duration) Cache {
 	return &basicCache{
 		ttl:   ttl,
-		cache: make(map[interface{}]cacheItem),
+		cache: make(map[interface{}]item),
 	}
 }
 
 type basicCache struct {
 	ttl   time.Duration
-	cache map[interface{}]cacheItem
+	cache map[interface{}]item
 }
 
 func (c *basicCache) Add(key string, value interface{}) {
-	c.cache[key] = cacheItem{value, time.Now().Add(c.ttl)}
+	c.cache[key] = item{value, time.Now().Add(c.ttl)}
 }
 
 func (c *basicCache) Get(key string) (interface{}, bool) {

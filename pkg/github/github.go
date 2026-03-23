@@ -19,16 +19,13 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/pennsieve/github-client/internal/cache"
 )
 
 const handlerName = "handler"
 const functionName = "function"
 
-var userInstallationIdListCache cache
-
-func init() {
-	userInstallationIdListCache = newBasicCache(defaultTTL)
-}
+var userInstallationIdListCache = cache.New(cache.DefaultTTL)
 
 type GitHubApi interface {
 	DeleteInstallation(installationId string) error
