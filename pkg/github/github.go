@@ -206,6 +206,10 @@ func (s *GitHubApiClient) getAccessToken() (string, error) {
 	return installationAccessToken.Token, nil
 }
 
+func (s *GitHubApiClient) hasAuth() bool {
+	return s.accessToken != "" || s.appPrivateKey != ""
+}
+
 func (s *GitHubApiClient) GetUserProfile() (*GithubProfile, error) {
 	logger := s.logger.With(
 		functionName, "GetUserProfile",
@@ -594,16 +598,19 @@ func (s *GitHubApiClient) GetContent(url string, filePath string, tag string) (*
 		filePath,
 		tag)
 
-	accessToken, err := s.getAccessToken()
-	if err != nil {
-		message := "Error: Unable to get access token: " + fmt.Sprint(err)
-		logger.Error(message)
-		return nil, err
-	}
-
 	req, _ := http.NewRequest("GET", requestUrl, nil)
 	req.Header.Set("Accept", "application/vnd.github+json")
-	req.Header.Set("Authorization", "Bearer "+accessToken)
+
+	if s.hasAuth() {
+		accessToken, err := s.getAccessToken()
+		if err != nil {
+			message := "Error: Unable to get access token: " + fmt.Sprint(err)
+			logger.Error(message)
+			return nil, err
+		}
+		req.Header.Set("Authorization", "Bearer "+accessToken)
+	}
+
 	logger.Debug(fmt.Sprintf("req: %+v", req))
 
 	resp, err := s.httpClient.Do(req)

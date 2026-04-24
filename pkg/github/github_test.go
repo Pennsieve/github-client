@@ -122,6 +122,41 @@ func TestGetFileContent(t *testing.T) {
 	})
 }
 
+func TestGetFileContentUnauthenticated(t *testing.T) {
+	fileContent := "package main\n\nfunc main() {}\n"
+	encoded := base64.StdEncoding.EncodeToString([]byte(fileContent))
+
+	var receivedAuthHeader string
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedAuthHeader = r.Header.Get("Authorization")
+		if r.URL.Path == "/repos/owner/repo/contents/main.go" {
+			resp := GitHubContentResponse{
+				Name:     "main.go",
+				Path:     "main.go",
+				Content:  encoded,
+				Encoding: "base64",
+			}
+			json.NewEncoder(w).Encode(resp)
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer mockServer.Close()
+
+	client := NewGitHubApiClient(
+		slog.Default(),
+		"testClientId",
+		"testClientSecret",
+		mockServer.URL,
+		TestPennsieveGitHubAppId,
+	)
+
+	content, err := client.GetFileContent("https://github.com/owner/repo", "main.go", "v1.0.0")
+	assert.NoError(t, err)
+	assert.Equal(t, []byte(fileContent), content)
+	assert.Empty(t, receivedAuthHeader, "Authorization header should not be set when no credentials are configured")
+}
+
 func testGetGithubProfile(t *testing.T, c GitHubApi) {
 
 	testUserProfile, err := c.GetUserProfile()
