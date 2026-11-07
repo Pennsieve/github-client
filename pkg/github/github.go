@@ -618,11 +618,18 @@ func (s *GitHubApiClient) GetContent(url string, filePath string, tag string) (*
 		return nil, err
 	}
 
+	defer resp.Body.Close()
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, nil
 	}
+	// Anything else but the file is an error, not an empty file: a rate limit
+	// (403, 429) answers with a message that decodes to no content.
+	if resp.StatusCode != http.StatusOK {
+		message := fmt.Sprintf("Error: GitHub answered %d for %s at %s", resp.StatusCode, filePath, tag)
+		logger.Error(message)
+		return nil, errors.New(message)
+	}
 
-	defer resp.Body.Close()
 	var content GitHubContentResponse
 	if err = json.NewDecoder(resp.Body).Decode(&content); err != nil {
 		message := "Error: Unable to parse GitHub Content response: " + fmt.Sprint(err)
