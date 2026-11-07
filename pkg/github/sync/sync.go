@@ -90,6 +90,14 @@ func syncFile(ctx context.Context, logger *slog.Logger, fetcher ContentFetcher, 
 		return result
 	}
 
+	// A file always comes with its encoding; without one the answer wasn't a
+	// file (an error message), and syncing it would store an empty file.
+	if content.Encoding == "" {
+		result.Error = fmt.Errorf("no file in the response for %s", filePath)
+		logger.Error(result.Error.Error())
+		return result
+	}
+
 	decoded, err := base64.StdEncoding.DecodeString(content.Content)
 	if err != nil {
 		result.Error = fmt.Errorf("failed to decode content for %s: %w", filePath, err)

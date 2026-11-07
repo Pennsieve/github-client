@@ -3,6 +3,7 @@ package github
 import (
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -171,4 +172,20 @@ func testGetGithubProfile(t *testing.T, c GitHubApi) {
 		AvatarUrl:      "https://avatars2.githubusercontent.com/u/1234",
 	}
 	assert.Equal(t, testUserProfile, &p)
+}
+
+// A rate limit (or any answer but the file or 404) is an error, not an empty file.
+func TestGetContentRateLimited(t *testing.T) {
+	for _, status := range []int{http.StatusForbidden, http.StatusTooManyRequests, http.StatusInternalServerError} {
+		mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(status)
+			w.Write([]byte(`{"message":"API rate limit exceeded"}`))
+		}))
+		client := NewGitHubApiClient(slog.Default(), "id", "secret", mockServer.URL, TestPennsieveGitHubAppId)
+
+		content, err := client.GetContent("https://github.com/owner/repo", "app.yml", "v1")
+		assert.Nil(t, content)
+		assert.ErrorContains(t, err, fmt.Sprintf("GitHub answered %d", status))
+		mockServer.Close()
+	}
 }

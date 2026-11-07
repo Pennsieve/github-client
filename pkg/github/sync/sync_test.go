@@ -235,3 +235,23 @@ func TestDetectContentType(t *testing.T) {
 		})
 	}
 }
+
+// fetcherFunc answers GetContent with a function.
+type fetcherFunc func(filePath string) (*ContentResponse, error)
+
+func (f fetcherFunc) GetContent(_ string, filePath string, _ string) (*ContentResponse, error) {
+	return f(filePath)
+}
+
+// A response that isn't a file (no encoding: an error message decoded as
+// content) is a failure, and nothing is written for it.
+func TestSyncContent_ResponseWithoutFile(t *testing.T) {
+	fetcher := fetcherFunc(func(string) (*ContentResponse, error) { return &ContentResponse{}, nil })
+	dest := newMockDestination()
+	config := Config{RepoUrl: "https://github.com/o/r", Tag: "v1", Namespace: "o/r/v1", Files: []string{"app.yml"}}
+
+	results := SyncContent(context.Background(), slog.Default(), fetcher, config, dest)
+
+	assert.Error(t, results[0].Error)
+	assert.Empty(t, dest.written)
+}
